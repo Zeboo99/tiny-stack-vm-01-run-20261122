@@ -8,7 +8,21 @@ import { join } from 'node:path';
 
 const IN = process.env.MAKEFUN_INPUT_DIR ?? '/input';
 const OUT = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
-const enc = new TextEncoder();
+// Decimal form of a signed 32-bit int, written straight into `buf` at `at`
+// (digits reversed in a fixed scratch buffer — no String, no TextEncoder,
+// no per-print allocation). Returns the new offset, or -1 when the write
+// would pass `cap`.
+const scratch = new Uint8Array(12);
+function writeInt(buf, at, cap, v) {
+  let n = 0;
+  let u = v < 0 ? -v : v;
+  do { scratch[n++] = 48 + (u % 10); u = (u / 10) | 0; } while (u > 0);
+  const len = n + (v < 0 ? 1 : 0);
+  if (at + len > cap) return -1;
+  if (v < 0) buf[at++] = 45;
+  while (n > 0) buf[at++] = scratch[--n];
+  return at;
+}
 
 // Runs one program on its input bytes; returns [stdout bytes, exit code].
 // Every rule is ISA.md's, in the order it states them: step limit, pc range,
@@ -103,9 +117,9 @@ function run(p, inp) {
         break;
       }
       case 80: {
-        const b = enc.encode(String(D[sp - 1]));
-        if (ol + b.length > 65536) return end(11);
-        sp--; out.set(b, ol); ol += b.length;
+        const no = writeInt(out, ol, 65536, D[sp - 1]);
+        if (no < 0) return end(11);
+        sp--; ol = no;
         break;
       }
       case 81:
