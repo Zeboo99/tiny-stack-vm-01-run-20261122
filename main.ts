@@ -11,7 +11,8 @@ const OUT = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 // Decimal form of a signed 32-bit int, written straight into `buf` at `at`
 // (digits reversed in a fixed scratch buffer — no String, no TextEncoder,
 // no per-print allocation). Returns the new offset, or -1 when the write
-// would pass `cap`.
+// would pass `cap`. No special case for INT_MIN: JS numbers are doubles,
+// so -(-2147483648) is exactly 2147483648 and the digit loop below just works.
 const scratch = new Uint8Array(12);
 function writeInt(buf, at, cap, v) {
   let n = 0;
